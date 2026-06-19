@@ -11,6 +11,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Social Graph", lifespan=lifespan)
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.post("/users", status_code=201)
 def create_user(body: CreateUser):
     with get_session() as session:
