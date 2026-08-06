@@ -97,7 +97,7 @@ def get_feed(user_id: str):
             WITH post, followed, collect(tag.name) AS tags
             RETURN post.post_id   AS post_id,
                    post.content   AS content,
-                   post.created_at AS created_at,
+                   toString(post.created_at) AS created_at,
                    followed.name  AS author,
                    tags
             ORDER BY post.created_at DESC
@@ -123,3 +123,30 @@ def chat(body: ChatRequest):
             "raw_results": results
         }
     }
+    
+@app.get("/users/{user_id}/profile")
+def get_profile(user_id: str):
+    with get_session() as session:
+        result = session.run("""
+            MATCH (u:User {user_id: $uid})
+            OPTIONAL MATCH (u)-[:POSTED]->(post)
+            OPTIONAL MATCH (post)-[:HAS_TAG]->(tag)
+            WITH u, post, collect(DISTINCT tag.name) AS tags
+            ORDER BY post.created_at DESC
+            WITH u, collect(CASE WHEN post IS NOT NULL THEN {
+                post_id: post.post_id,
+                content: post.content,
+                created_at: toString(post.created_at),
+                tags: tags
+            } END) AS posts
+            RETURN u.user_id AS user_id,
+                   u.name    AS name,
+                   u.bio     AS bio,
+                   posts
+        """, {"uid": user_id})
+        row = result.single()
+        if not row:
+            raise HTTPException(404, "User not found")
+        data = dict(row)
+        data["posts"] = [p for p in data["posts"] if p is not None]
+        return data
