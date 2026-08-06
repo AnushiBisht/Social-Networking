@@ -3,8 +3,3 @@ uvicorn
 neo4j
 groq
 python-dotenv
-<<<<<<< HEAD
-pydantic
-=======
-pydantic
->>>>>>> 265882bf299e67546edea3b37a18165c6fa8a344
