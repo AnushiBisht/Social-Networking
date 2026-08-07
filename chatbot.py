@@ -31,9 +31,19 @@ Your job:
 }
 
 Rules:
-- Always use $params instead of hardcoding values
-- LIMIT results to 10 unless asked otherwise
-- If question can't be answered from the graph, set cypher to null
+- Always use $params instead of hardcoding values.
+- LIMIT results to 10 unless asked otherwise.
+- If the question can't be answered from the graph, set cypher to null.
+- Never use a pattern expression inside SIZE(), COUNT(), or other functions.
+- To count relationships, use MATCH with the relationship and count().
+- For incoming FOLLOWS relationships, use:
+  MATCH (u:User)<-[:FOLLOWS]-(follower:User)
+  WITH u, count(follower) AS followCount
+- For outgoing FOLLOWS relationships, use:
+  MATCH (u:User)-[:FOLLOWS]->(followed:User)
+  WITH u, count(followed) AS followCount
+- Use pattern comprehensions only when a list of matched values is actually required.
+- Generate valid Cypher syntax compatible with modern Neo4j.
 """
 
 

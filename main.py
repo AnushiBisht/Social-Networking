@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from db import get_session, close_driver
 from models import CreateUser, CreatePost, ChatRequest
@@ -10,6 +11,14 @@ async def lifespan(app: FastAPI):
     close_driver()
 
 app = FastAPI(title="Social Graph", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/users", status_code=201)
 def create_user(body: CreateUser):
@@ -41,6 +50,45 @@ def get_followers(user_id: str):
             RETURN f.user_id AS user_id, f.name AS name
         """, {"uid": user_id})
         return [dict(r) for r in result]
+    
+@app.get("/users/{user_id}/profile")
+def get_profile(user_id: str):
+    with get_session() as session:
+        result = session.run("""
+            MATCH (u:User {user_id: $uid})
+            OPTIONAL MATCH (u)-[:POSTED]->(post:Post)
+            OPTIONAL MATCH (post)-[:HAS_TAG]->(tag)
+            WITH u, post, collect(tag.name) AS tags
+            ORDER BY post.created_at DESC
+            RETURN u.user_id AS user_id,
+                   u.name AS name,
+                   u.bio AS bio,
+                   collect(
+                       CASE
+                           WHEN post IS NULL THEN NULL
+                           ELSE {
+                               post_id: post.post_id,
+                               content: post.content,
+                               created_at: post.created_at,
+                               tags: tags
+                           }
+                       END
+                   ) AS posts
+        """, {"uid": user_id})
+
+        row = result.single()
+
+        if not row:
+            raise HTTPException(404, "User not found")
+
+        posts = [p for p in row["posts"] if p is not None]
+
+        return {
+            "user_id": row["user_id"],
+            "name": row["name"],
+            "bio": row["bio"],
+            "posts": posts
+        }
     
 @app.get("/users/{user_id}/suggestions")
 def get_suggestions(user_id: str):
