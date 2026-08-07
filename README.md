@@ -226,4 +226,3 @@ pydantic
 ## License
 
 MIT
-MIT
